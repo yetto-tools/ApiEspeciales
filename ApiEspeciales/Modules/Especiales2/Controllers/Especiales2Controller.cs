@@ -233,9 +233,54 @@ namespace ApiEspeciales.Modules.Especiales2.Controllers
         }
 
         [HttpPost("modificaciondetalletrasladado")]
-        public Task<IActionResult> ModificacionDetalleTrasladadoAsync([FromForm, Required] int codigo, [FromForm, Required] string usuario)
+        public async Task<IActionResult> ModificacionDetalleTrasladadoAsync([FromForm, Required] int codigo, [FromForm, Required] string usuario)
         {
-            throw new NotImplementedException();
+            using var db = _odbc.CreateConnection();
+            using var Trans = db.BeginTransaction();
+
+            try
+            {
+                string? InsertarHistorialModiciaciones = string.Empty;
+                string? ActualizarCambios = string.Empty;
+
+                stmt.ModicacionDetalleTraslado(codigo, usuario).TryGetValue("InsertarHistorialModiciaciones", out InsertarHistorialModiciaciones);
+                stmt.ModicacionDetalleTraslado(codigo, usuario).TryGetValue("ActualizarCambios", out ActualizarCambios);
+
+                var insertHistorialModificaciones = await db.ExecuteAsync(
+                    sql: ActualizarCambios,
+                    transaction: Trans
+                );
+
+                Trans.Commit();
+
+                var updateCambios = await db.ExecuteAsync(
+                    sql: InsertarHistorialModiciaciones,
+                    transaction: Trans
+                );
+                Trans.Commit();
+
+                if (insertHistorialModificaciones == 0 || updateCambios == 0)
+                {
+                    return StatusCode(304,
+                        new
+                        {
+                            affectedRows = new
+                            {
+                                insertHistorialModificaciones,
+                                updateCambios
+                            }
+                        });
+                }
+
+                return Ok(updateCambios);
+            }
+            catch (Exception ex)
+            {
+                Trans.Rollback();
+                _logger.LogError("[{}] {} ", DateTime.UtcNow, ex.Message);
+                return StatusCode(500, new { error = ex.Message });
+            }
+
         }
 
         [HttpGet("trasladosgenerados")]
