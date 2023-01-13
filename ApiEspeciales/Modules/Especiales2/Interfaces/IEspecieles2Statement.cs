@@ -16,7 +16,7 @@ namespace ApiEspeciales.Modules.Especiales2.Interfaces
         string InsertDetalle(int codigoTraslado, string usuario, string fechaOperacionOperacion, int codigoRutaEspeciales = 332);
         string InsertEncabezado();
 
-        string ModicacionDetalleTraslado(int codigo, string usuario, int codigoRutaEspeciales = 332);
+        Dictionary<string, string> ModicacionDetalleTraslado(int codigo, string usuario, int codigoRutaEspeciales = 332);
         string NumeroRegistros(string fechaOperacion, int codigoRutaEspeciales = 322);
         string TrasladosGenerados();
         string TrasladosGeneradosConta();
