@@ -107,74 +107,77 @@ namespace ApiEspeciales.Modules.Especiales2.SQL
             throw new NotImplementedException();
         }
 
-        public string ModicacionDetalleTraslado(int codigoTraslado, string usuario, int codigoRutaEspeciales = 332)
+        public Dictionary<string, string> ModicacionDetalleTraslado(int codigoTraslado, string usuario, int codigoRutaEspeciales = 332)
         {
-            var InsertarHistorialModiciaciones = @$"
-                INSERT INTO inf_traslado_especiales2_hist(
-                    empresa,
-                    serie,
-                    pedido,
-                    monto_modificado,
-                    monto_correcto,
-                    descripcion,
-                    estado,
-                    usuario_ing,
-                    fecha_ing
-                )
-                
-                SELECT x.empresa, 
-	                x.serie, 
-	                x.pedido,
-	                x.monto AS monto_modificado,
-	                cast(y.monto as decimal(18,2)) AS monto_correcto,
-                    CASE 
-                        WHEN y.estado = 9 THEN 'Pedido anulado'
-                        ELSE 'Monto modificado'
-                    END AS descripion,
-	                {EstadoTraslado.GENERADO} AS estado,
-	                '{usuario}' AS usuario_ing,
-	                NOW() AS fecha_ing
-                FROM inf_traslado_detalle_especiales2 x
-                    INNER JOIN inf_pedido y
-                        ON x.empresa = y.empresa AND x.serie = y.serie AND x.pedido = y.pedido
-                WHERE x.codigo_traslado = {codigoTraslado}
-                    AND x.estado = 1
-                    AND ((x.monto - cast(y.monto as decimal(18,2))) <> 0 
-                    OR y.estado = 9 
-                    OR y.qsys_vendedor <> {codigoRutaEspeciales} 
-                    OR y.credito <> 0)
-            ";
 
-            var ActulizarCambios = $@"
-                UPDATE inf_traslado_detalle_especiales2 a
-                INNER JOIN ( 
-                    SELECT 
-                        x.empresa, 
-			 	        x.serie, 
-				        x.pedido, 
-					    cast(y.monto as decimal(18,2)) AS monto_actualizado,
-                        CASE
-                            WHEN (y.estado = 9 OR y.qsys_vendedor <> {codigoRutaEspeciales} OR y.credito <> 0)
-                            THEN {EstadoTraslado.ANULADO}
-                            ELSE {EstadoTraslado.GENERADO}
-                        END AS codigo_estado
+            Dictionary<string, string> stmtModificarTraslado = new()
+            {
+                { "InsertarHistorialModiciaciones", @$"
+                    INSERT INTO inf_traslado_especiales2_hist(
+                        empresa,
+                        serie,
+                        pedido,
+                        monto_modificado,
+                        monto_correcto,
+                        descripcion,
+                        estado,
+                        usuario_ing,
+                        fecha_ing
+                    )
+                
+                    SELECT x.empresa, 
+	                    x.serie, 
+	                    x.pedido,
+	                    x.monto AS monto_modificado,
+	                    cast(y.monto as decimal(18,2)) AS monto_correcto,
+                        CASE 
+                            WHEN y.estado = 9 THEN 'Pedido anulado'
+                            ELSE 'Monto modificado'
+                        END AS descripion,
+	                    {EstadoTraslado.GENERADO} AS estado,
+	                    '{usuario}' AS usuario_ing,
+	                    NOW() AS fecha_ing
                     FROM inf_traslado_detalle_especiales2 x
                         INNER JOIN inf_pedido y
-                        ON x.empresa = y.empresa AND x.serie = y.serie AND x.pedido = y.pedido
+                            ON x.empresa = y.empresa AND x.serie = y.serie AND x.pedido = y.pedido
                     WHERE x.codigo_traslado = {codigoTraslado}
-                    AND x.estado = {EstadoTraslado.GENERADO}
-                    AND (
-                        (x.monto - cast(y.monto as decimal(18,2))) <> 0 
-                            OR y.estado = 9 
-                                OR y.qsys_vendedor <> {codigoRutaEspeciales}
-                                    OR y.credito <> 0
-                        )
-		            ) b 
-                ON a.empresa = b.empresa AND a.serie = b.serie AND a.pedido = b.pedido
-                SET a.monto = b.monto_actualizado, a.estado = b.codigo_estado
-            ";
+                        AND x.estado = 1
+                        AND ((x.monto - cast(y.monto as decimal(18,2))) <> 0 
+                        OR y.estado = 9 
+                        OR y.qsys_vendedor <> {codigoRutaEspeciales} 
+                        OR y.credito <> 0)
+                "},
+                { "ActualizarCambios", $@"
+                    UPDATE inf_traslado_detalle_especiales2 a
+                    INNER JOIN ( 
+                        SELECT 
+                            x.empresa, 
+			 	            x.serie, 
+				            x.pedido, 
+					        cast(y.monto as decimal(18,2)) AS monto_actualizado,
+                            CASE
+                                WHEN (y.estado = 9 OR y.qsys_vendedor <> {codigoRutaEspeciales} OR y.credito <> 0)
+                                THEN {EstadoTraslado.ANULADO}
+                                ELSE {EstadoTraslado.GENERADO}
+                            END AS codigo_estado
+                        FROM inf_traslado_detalle_especiales2 x
+                            INNER JOIN inf_pedido y
+                            ON x.empresa = y.empresa AND x.serie = y.serie AND x.pedido = y.pedido
+                        WHERE x.codigo_traslado = {codigoTraslado}
+                        AND x.estado = {EstadoTraslado.GENERADO}
+                        AND (
+                            (x.monto - cast(y.monto as decimal(18,2))) <> 0 
+                                OR y.estado = 9 
+                                    OR y.qsys_vendedor <> {codigoRutaEspeciales}
+                                        OR y.credito <> 0
+                            )
+		                ) b 
+                    ON a.empresa = b.empresa AND a.serie = b.serie AND a.pedido = b.pedido
+                    SET a.monto = b.monto_actualizado, a.estado = b.codigo_estado
+                "}
+            };
 
-            return InsertarHistorialModiciaciones + ActulizarCambios;
+            return stmtModificarTraslado;
         }
 
         public string NumeroRegistros(string fechaOperacion, int codigoRutaEspeciales = 322)
