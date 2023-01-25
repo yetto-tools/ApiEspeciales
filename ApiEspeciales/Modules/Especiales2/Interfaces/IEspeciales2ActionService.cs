@@ -11,7 +11,7 @@ namespace ApiEspeciales.Modules.Especiales2.Interfaces
         Task<IActionResult> DetalleTrasladoEdicionAsync([FromQuery, Required] int codigo);
         Task<IActionResult> EliminarDetalleTrasladoAsync([FromRoute, Required] string codigo);
         Task<IActionResult> EliminarTrasladoAsync([FromRoute, Required] int codigo);
-        Task<IActionResult> GenerarAsync();
+        Task<IActionResult> GenerarAsync([FromForm, Required] string fecha, [FromForm, Required] string usuario);
         Task<IActionResult> ImportacionesAsync();
         Task<IActionResult> ImportacionesPorFechaAsync([FromHeader, Required] DateTime fecha);
         Task<IActionResult> ModificacionDetalleTrasladadoAsync([FromForm, Required] int codigo, [FromForm, Required] string usuario);
