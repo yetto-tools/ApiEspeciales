@@ -14,7 +14,6 @@ namespace ApiEspeciales.Modules.Especiales2.Controllers
     [ApiController]
     public class Especiales2Controller : ControllerBase, IEspeciales2ActionService
     {
-
         private readonly ILogger<Especiales2Controller> _logger;
         private readonly OdbcContext _odbc;
         public readonly Especiales2Statement stmt = new();
@@ -129,12 +128,16 @@ namespace ApiEspeciales.Modules.Especiales2.Controllers
 
             try
             {
+                // Solo por Compatibilidad, 
+                // [Obsoleto y Anticuado]
                 var param = codigo.Split(',');
 
                 var eliminarDetalleTraslado =
                     await db.ExecuteAsync(
                         sql: stmt.EliminarDetalleTraslado(codigoEmpresa: param[0], codigoSerie: param[1], codigoPedido: param[2])
                     );
+                
+                trans.Commit();
 
                 if (eliminarDetalleTraslado == 0)
                 {
@@ -206,7 +209,7 @@ namespace ApiEspeciales.Modules.Especiales2.Controllers
         }
 
         [HttpPost("generar")]
-        public Task<IActionResult> GenerarAsync()
+        public Task<IActionResult> GenerarAsync([FromForm, Required] string fecha, [FromForm, Required] string usuario)
         {
             throw new NotImplementedException();
         }
@@ -312,8 +315,7 @@ namespace ApiEspeciales.Modules.Especiales2.Controllers
 
             var DataAccessObject = await db.QueryAsync(
                 stmt.TrasladosGeneradosConta()
-               );
-
+                );
             return Ok(DataAccessObject);
         }
 

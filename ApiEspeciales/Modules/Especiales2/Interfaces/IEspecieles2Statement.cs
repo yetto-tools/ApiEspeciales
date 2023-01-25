@@ -2,7 +2,6 @@
 
 namespace ApiEspeciales.Modules.Especiales2.Interfaces
 {
-
     internal interface IEspecieles2Statement
     {
         string CambiarEstado(int codigoTraslado, int estadoTraslado);
@@ -15,7 +14,6 @@ namespace ApiEspeciales.Modules.Especiales2.Interfaces
         string ImportacionPorfecha(string fechaOperacion);
         string InsertDetalle(int codigoTraslado, string usuario, string fechaOperacionOperacion, int codigoRutaEspeciales = 332);
         string InsertEncabezado();
-
         Dictionary<string, string> ModicacionDetalleTraslado(int codigo, string usuario, int codigoRutaEspeciales = 332);
         string NumeroRegistros(string fechaOperacion, int codigoRutaEspeciales = 322);
         string TrasladosGenerados();
