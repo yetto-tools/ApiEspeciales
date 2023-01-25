@@ -19,7 +19,6 @@ namespace ApiEspeciales.Modules.Especiales2.SQL
 
         public string DetalleTraslado(int codigoTraslado)
         {
-
             return $@"
                 SELECT
                     empresa,
@@ -94,7 +93,52 @@ namespace ApiEspeciales.Modules.Especiales2.SQL
 
         public string ImportacionPorfecha(string fechaOperacion)
         {
-            throw new NotImplementedException();
+            return $@"
+                SELECT  x.codigo_traslado, 
+                    DATE_FORMAT(x.fecha_operacion,'%d/%m/%Y') AS fecha_operacion,
+                    x.fecha_traslado,
+                    IFNULL((SELECT count(*) from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS numero_pedidos,
+                    IFNULL((SELECT sum(monto)  from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS monto_total,
+                    x.observaciones_traslado,
+                    x.codigo_estado,
+                    y.nombre AS estado,
+                    x.usuario_ing,
+                    DATE_FORMAT(x.fecha_ing,'%d/%m/%Y %H:%i:%s') AS fecha_ing,
+                    CASE
+                        WHEN x.codigo_estado = {EstadoTraslado.POR_RECIBIR} 
+                        THEN {EstadoTraslado.GENERADO}
+                        ELSE {EstadoTraslado.ANULADO}
+                    END AS permiso_importar,
+                    CASE
+                        WHEN (
+                            x.codigo_estado = {EstadoTraslado.RECIBIDO} 
+                          OR 
+                            x.codigo_estado = {EstadoTraslado.DEPURADO}
+                        ) 
+                        THEN {EstadoTraslado.GENERADO}
+                        ELSE {EstadoTraslado.ANULADO}
+                    END AS permiso_depurar,
+                    CASE
+                        WHEN x.codigo_estado = {EstadoTraslado.DEPURADO} 
+                        THEN {EstadoTraslado.GENERADO}
+                        ELSE {EstadoTraslado.ANULADO}
+                    END AS permiso_registrar,
+                    CASE
+                        WHEN (
+                              x.codigo_estado = {EstadoTraslado.RECIBIDO} 
+                          OR 
+                              x.codigo_estado = {EstadoTraslado.DEPURADO}
+                        ) 
+                        THEN {EstadoTraslado.GENERADO}
+                        ELSE {EstadoTraslado.ANULADO}
+                    END AS permiso_editar,
+                    {EstadoTraslado.GENERADO} AS permiso_informacion
+                FROM inf_traslado_especiales2 x
+                INNER JOIN inf_estado_traslado_especiales2 y
+                    ON x.codigo_estado = y.codigo_estado_traslado
+                WHERE x.codigo_estado IN ({EstadoTraslado.POR_RECIBIR},{EstadoTraslado.RECIBIDO},{EstadoTraslado.DEPURADO})
+                  AND x.fecha_operacion = '{fechaOperacion}'
+            ";
         }
 
         public string InsertDetalle(int codigoTraslado, string usuario, string fechaOperacionOperacion, int codigoRutaEspeciales = 332)
@@ -139,13 +183,15 @@ namespace ApiEspeciales.Modules.Especiales2.SQL
 	                    NOW() AS fecha_ing
                     FROM inf_traslado_detalle_especiales2 x
                         INNER JOIN inf_pedido y
-                            ON x.empresa = y.empresa AND x.serie = y.serie AND x.pedido = y.pedido
+                            ON x.empresa = y.empresa 
+                                AND x.serie = y.serie 
+                                    AND x.pedido = y.pedido
                     WHERE x.codigo_traslado = {codigoTraslado}
                         AND x.estado = 1
-                        AND ((x.monto - cast(y.monto as decimal(18,2))) <> 0 
-                        OR y.estado = 9 
-                        OR y.qsys_vendedor <> {codigoRutaEspeciales} 
-                        OR y.credito <> 0)
+                            AND ((x.monto - cast(y.monto as decimal(18,2))) <> 0 
+                                OR y.estado = 9 
+                                    OR y.qsys_vendedor <> {codigoRutaEspeciales} 
+                                        OR y.credito <> 0)
                 "},
                 { "ActualizarCambios", $@"
                     UPDATE inf_traslado_detalle_especiales2 a
@@ -187,12 +233,90 @@ namespace ApiEspeciales.Modules.Especiales2.SQL
 
         public string TrasladosGenerados()
         {
-            throw new NotImplementedException();
+            return $@"
+                    SELECT  
+                        x.codigo_traslado, 
+                        DATE_FORMAT(x.fecha_operacion,'%d/%m/%Y') AS fecha_operacion,
+                        x.fecha_traslado,
+                        IFNULL((SELECT count(*) from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS numero_pedidos,
+                        IFNULL((SELECT sum(monto)  from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS monto_total,
+                        x.observaciones_traslado,
+                        x.codigo_estado,
+                        y.nombre AS estado,
+                        x.usuario_ing,
+                        DATE_FORMAT(x.fecha_ing,'%d/%m/%Y %H:%i:%s') AS fecha_ing,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO}) THEN 1
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_anular,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO}) THEN 1
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_traslado,
+                        CASE
+                            WHEN x.codigo_estado NOT IN ({EstadoTraslado.GENERADO}) THEN 1
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_imprimir,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO}) THEN 1
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_editar,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.POR_RECIBIR}) THEN 1
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_actualizar,
+                        (SELECT sum(monto) AS monto_total_dia 
+                            FROM inf_traslado_detalle_especiales2 
+                            WHERE codigo_traslado IN ( SELECT codigo_traslado 
+                                                    FROM inf_traslado_especiales2  
+                                                    WHERE fecha_operacion = x.fecha_operacion) 
+                                                        AND estado = {EstadoTraslado.GENERADO}) AS monto_total_dia
+                    FROM inf_traslado_especiales2 x
+                    INNER JOIN inf_estado_traslado_especiales2 y
+                    ON x.codigo_estado = y.codigo_estado_traslado 
+                    WHERE x.codigo_estado IN ({EstadoTraslado.GENERADO},{EstadoTraslado.POR_RECIBIR})
+                      AND x.fecha_operacion >= CURDATE()
+            ";
         }
 
         public string TrasladosGeneradosConta()
         {
-            throw new NotImplementedException();
+            return $@"
+                SELECT  x.codigo_traslado, 
+                        DATE_FORMAT(x.fecha_operacion,'%d/%m/%Y') AS fecha_operacion,
+                        x.fecha_traslado,
+                        IFNULL((SELECT count(*) from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS numero_pedidos,
+                        IFNULL((SELECT sum(monto)  from inf_traslado_detalle_especiales2 WHERE estado = 1 AND codigo_traslado = x.codigo_traslado GROUP BY codigo_traslado),0) AS monto_total,
+                        x.observaciones_traslado,
+                        x.codigo_estado,
+                        y.nombre AS estado,
+                        x.usuario_ing,
+                        DATE_FORMAT(x.fecha_ing,'%d/%m/%Y %H:%i:%s') AS fecha_ing,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO})  THEN {EstadoTraslado.GENERADO}
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_anular,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO})  THEN {EstadoTraslado.GENERADO}
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_traslado,
+                        CASE
+                            WHEN x.codigo_estado NOT IN ({EstadoTraslado.GENERADO})  THEN {EstadoTraslado.GENERADO}
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_imprimir,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.GENERADO})  THEN {EstadoTraslado.GENERADO}
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_editar,
+                        CASE
+                            WHEN x.codigo_estado IN ({EstadoTraslado.POR_RECIBIR})  THEN {EstadoTraslado.GENERADO}
+                            ELSE {EstadoTraslado.ANULADO}
+                        END AS permiso_actualizar
+                FROM inf_traslado_especiales2 x
+                INNER JOIN inf_estado_traslado_especiales2 y
+                ON x.codigo_estado = y.codigo_estado_traslado
+                WHERE x.codigo_estado IN ({EstadoTraslado.GENERADO},{EstadoTraslado.POR_RECIBIR})
+            ";
         }
 
         public string TrasladosPorDia(DateTime fechaOperacion, int estadoTraslado = EstadoTraslado.ANULADO)
